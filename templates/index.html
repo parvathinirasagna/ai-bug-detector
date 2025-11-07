@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Bug Detector - GITAM</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header { background: white; padding: 30px; border-radius: 15px; text-align: center; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        h1 { color: #667eea; font-size: 2.5em; margin-bottom: 10px; }
+        .guide { color: #666; font-size: 0.9em; margin-top: 10px; }
+        .main-content { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .editor-section, .results-section { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .controls { display: flex; gap: 10px; margin-bottom: 15px; }
+        select, button { padding: 12px 20px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px; cursor: pointer; }
+        select { background: white; color: #333; }
+        .btn-primary { background: #667eea; color: white; font-weight: bold; transition: all 0.3s; }
+        .btn-primary:hover { background: #5568d3; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102,126,234,0.4); }
+        .btn-secondary { background: white; color: #667eea; }
+        textarea { width: 100%; height: 500px; border: 2px solid #ddd; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 14px; resize: vertical; }
+        .results-section h2 { color: #667eea; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
+        .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; }
+        .stat-number { font-size: 2em; font-weight: bold; margin-bottom: 5px; }
+        .stat-label { font-size: 0.9em; opacity: 0.9; }
+        .issue-list { max-height: 600px; overflow-y: auto; }
+        .issue-card { background: #f8f9fa; border-left: 4px solid #667eea; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
+        .issue-card.critical { border-color: #dc3545; }
+        .issue-card.high { border-color: #fd7e14; }
+        .issue-card.medium { border-color: #ffc107; }
+        .issue-card.low { border-color: #28a745; }
+        .issue-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .issue-type { font-weight: bold; color: #667eea; text-transform: uppercase; font-size: 0.85em; }
+        .severity-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold; color: white; }
+        .severity-badge.critical { background: #dc3545; }
+        .severity-badge.high { background: #fd7e14; }
+        .severity-badge.medium { background: #ffc107; color: #333; }
+        .severity-badge.low { background: #28a745; }
+        .issue-message { color: #333; line-height: 1.6; }
+        .line-number { display: inline-block; background: #667eea; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 8px; }
+        .loading { display: none; text-align: center; padding: 20px; }
+        .loading.active { display: block; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .empty-state { text-align: center; padding: 60px 20px; color: #999; }
+        .empty-state-icon { font-size: 4em; margin-bottom: 20px; }
+        @media (max-width: 1200px) { .main-content { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 AI-Powered Bug Detection System</h1>
+            <p>Automatic detection of syntax errors, logical bugs, and antipatterns using GRU & CNN</p>
+            <p class="guide">📚 Based on Research Papers | Guide: M Bhavani | GITAM University</p>
+        </header>
+
+        <div class="main-content">
+            <div class="editor-section">
+                <div class="controls">
+                    <select id="languageSelect">
+                        <option value="python">Python</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="java">Java/C++</option>
+                    </select>
+                    <button id="analyzeBtn" class="btn-primary">🔍 Analyze Code</button>
+                    <button id="clearBtn" class="btn-secondary">🗑️ Clear</button>
+                </div>
+                <textarea id="codeInput" placeholder="Paste your code here...
+
+# Example Python code with bugs:
+def calculate(x, y=[]):  # Mutable default!
+    result = x / 0  # Division by zero!
+    y.append(x)
+    return
+    print('unreachable')  # Unreachable code!
+
+unused_var = 10  # Unused variable!
+"></textarea>
+            </div>
+
+            <div class="results-section">
+                <h2>📊 Analysis Results</h2>
+                
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalIssues">0</div>
+                        <div class="stat-label">Total Issues</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="linesAnalyzed">0</div>
+                        <div class="stat-label">Lines Analyzed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="severityLevel">-</div>
+                        <div class="stat-label">Severity</div>
+                    </div>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 15px;">Analyzing code...</p>
+                </div>
+
+                <div class="issue-list" id="issueList">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🎯</div>
+                        <h3>No Analysis Yet</h3>
+                        <p>Paste your code and click "Analyze Code" to detect bugs</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const codeInput = document.getElementById('codeInput');
+        const languageSelect = document.getElementById('languageSelect');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const issueList = document.getElementById('issueList');
+        const loading = document.getElementById('loading');
+        const totalIssues = document.getElementById('totalIssues');
+        const linesAnalyzed = document.getElementById('linesAnalyzed');
+        const severityLevel = document.getElementById('severityLevel');
+
+        analyzeBtn.addEventListener('click', analyzeCode);
+        clearBtn.addEventListener('click', () => {
+            codeInput.value = '';
+            issueList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🎯</div><h3>No Analysis Yet</h3><p>Paste your code and click "Analyze Code" to detect bugs</p></div>';
+            totalIssues.textContent = '0';
+            linesAnalyzed.textContent = '0';
+            severityLevel.textContent = '-';
+        });
+
+        async function analyzeCode() {
+            const code = codeInput.value.trim();
+            if (!code) {
+                alert('Please enter some code to analyze');
+                return;
+            }
+
+            loading.classList.add('active');
+            issueList.innerHTML = '';
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: code,
+                        language: languageSelect.value,
+                        use_ml: true
+                    })
+                });
+
+                const results = await response.json();
+                loading.classList.remove('active');
+                displayResults(results);
+            } catch (error) {
+                loading.classList.remove('active');
+                alert('Error analyzing code: ' + error.message);
+            }
+        }
+
+        function displayResults(results) {
+            totalIssues.textContent = results.total_issues || 0;
+            linesAnalyzed.textContent = results.lines_analyzed || 0;
+            severityLevel.textContent = (results.severity || 'low').toUpperCase();
+
+            if (results.total_issues === 0) {
+                issueList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">✅</div><h3>No Issues Found!</h3><p>Your code looks clean</p></div>';
+                return;
+            }
+
+            let html = '';
+
+            // Syntax Errors
+            if (results.syntax_errors && results.syntax_errors.length > 0) {
+                results.syntax_errors.forEach(issue => {
+                    html += createIssueCard('Syntax Error', issue);
+                });
+            }
+
+            // Logical Bugs
+            if (results.logical_bugs && results.logical_bugs.length > 0) {
+                results.logical_bugs.forEach(issue => {
+                    html += createIssueCard('Logical Bug', issue);
+                });
+            }
+
+            // Antipatterns
+            if (results.antipatterns && results.antipatterns.length > 0) {
+                results.antipatterns.forEach(issue => {
+                    html += createIssueCard('Antipattern', issue);
+                });
+            }
+
+            // ML Insights
+            if (results.ml_insights && results.ml_insights.length > 0) {
+                results.ml_insights.forEach(insight => {
+                    html += `<div class="issue-card low">
+                        <div class="issue-header">
+                            <span class="issue-type">🤖 ML Insight</span>
+                            <span class="severity-badge low">Info</span>
+                        </div>
+                        <div class="issue-message">${insight.message}</div>
+                    </div>`;
+                });
+            }
+
+            issueList.innerHTML = html;
+        }
+
+        function createIssueCard(type, issue) {
+            return `
+                <div class="issue-card ${issue.severity}">
+                    <div class="issue-header">
+                        <span class="issue-type">${type}</span>
+                        <span class="severity-badge ${issue.severity}">${issue.severity}</span>
+                    </div>
+                    <div class="issue-message">
+                        <span class="line-number">Line ${issue.line}</span>
+                        ${issue.message}
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
